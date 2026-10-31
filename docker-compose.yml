@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: subnexa-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-subnexa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-subnexa}
+      POSTGRES_DB: ${POSTGRES_DB:-subnexa}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - subnexa_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-subnexa} -d ${POSTGRES_DB:-subnexa}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+    container_name: subnexa-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-subnexa}:${POSTGRES_PASSWORD:-subnexa}@db:5432/${POSTGRES_DB:-subnexa}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api/v1}
+    container_name: subnexa-web
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+volumes:
+  subnexa_pgdata:
