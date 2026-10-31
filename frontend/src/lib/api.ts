@@ -55,7 +55,12 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
     headers.set("Authorization", `Bearer ${access}`);
   }
 
-  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, { ...options, headers });
+  } catch {
+    throw new ApiError("Cannot reach the Brightloop server. Check that the backend is running, then try again.", 0, "api_unavailable");
+  }
 
   if (response.status === 401 && !options.skipAuth && options.retry !== false) {
     const refreshed = await tryRefresh();
